@@ -69,6 +69,7 @@ Client → Project Created → AI Generates Tasks → Tasks Assigned → Progres
 
 ```bash
 git clone https://github.com/your-username/projectflow.git
+cd AI_PROJECT_MANAGER
 cd projectflow
 ```
 
@@ -133,19 +134,7 @@ http://localhost:5000
 
 ---
 
-## 🌐 Deployment (Vercel)
 
-1. Push project to GitHub
-2. Import into Vercel
-3. Add environment variable:
-
-```
-OPENAI_API_KEY = sk-xxxxx
-```
-
-4. Deploy 🚀
-
----
 
 ## 📂 Project Structure
 
