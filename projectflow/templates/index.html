@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>ProjectFlow — Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo">
+    <span class="logo-mark">PF</span>
+    <span class="logo-text">ProjectFlow</span>
+  </div>
+
+  <nav class="nav-section">
+    <p class="nav-label">Clients</p>
+    {% for c in clients %}
+    <a href="{{ url_for('client_view', client_id=c.id) }}" class="nav-item">
+      <span class="nav-avatar" style="background:var(--accent)">{{ c.name[0].upper() }}</span>
+      <span>{{ c.name }}</span>
+    </a>
+    {% else %}
+    <p class="nav-empty">No clients yet</p>
+    {% endfor %}
+    <button class="btn-ghost mt6" onclick="show('clientModal')">+ Add Client</button>
+  </nav>
+
+  <nav class="nav-section">
+    <p class="nav-label">Team ({{ members|length }})</p>
+    {% for m in members %}
+    <div class="nav-item member-row">
+      <span class="nav-avatar" style="background:{{ m.avatar_color }}">{{ m.name[0].upper() }}</span>
+      <div class="member-info">
+        <span class="member-name">{{ m.name }}</span>
+        <span class="member-role-tag">{{ m.role }}</span>
+      </div>
+      <form method="POST" action="{{ url_for('delete_member', member_id=m.id) }}" style="margin-left:auto">
+        <button type="submit" class="del-btn" title="Remove">✕</button>
+      </form>
+    </div>
+    {% else %}
+    <p class="nav-empty">No team members yet</p>
+    {% endfor %}
+    <button class="btn-ghost mt6" onclick="show('memberModal')">+ Add Member</button>
+  </nav>
+
+  <nav class="nav-section">
+    <p class="nav-label">Projects</p>
+    {% for p in projects[:8] %}
+    <a href="{{ url_for('project_detail', project_id=p.id) }}" class="nav-item">
+      <span class="nav-dot" style="background:{{ 'var(--green)' if stats[p.id].progress==100 else ('var(--red)' if stats[p.id].overdue>0 else 'var(--accent)') }}"></span>
+      <span>{{ p.title[:24] }}{% if p.title|length>24 %}…{% endif %}</span>
+    </a>
+    {% endfor %}
+  </nav>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <div>
+      <h1 class="page-title">Dashboard</h1>
+      <p class="page-sub">{{ today }} &nbsp;·&nbsp; {{ projects|length }} projects · {{ clients|length }} clients · {{ members|length }} team members</p>
+    </div>
+    <button class="btn-primary" onclick="show('projectModal')">＋ New Project</button>
+  </header>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <span class="stat-num">{{ clients|length }}</span>
+      <span class="stat-label">Clients</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-num">{{ projects|length }}</span>
+      <span class="stat-label">Projects</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-num">{{ members|length }}</span>
+      <span class="stat-label">Team Members</span>
+    </div>
+    <div class="stat-card accent-card">
+      <span class="stat-num red">{{ stats.values()|sum(attribute='overdue') }}</span>
+      <span class="stat-label">Overdue Tasks</span>
+    </div>
+  </div>
+
+  <!-- Projects Grid -->
+  <div class="projects-grid">
+    {% for p in projects %}
+    {% set s = stats[p.id] %}
+    <a href="{{ url_for('project_detail', project_id=p.id) }}" class="project-card {% if s.progress==100 %}card-done{% elif s.overdue>0 %}card-overdue{% endif %}">
+      <div class="card-top">
+        <div>
+          <p class="card-client">{{ p.client_name }}</p>
+          <h3 class="card-title">{{ p.title }}</h3>
+        </div>
+        <span class="badge {% if s.progress==100 %}badge-green{% elif s.overdue>0 %}badge-red{% else %}badge-blue{% endif %}">
+          {% if s.progress==100 %}Done{% elif s.overdue>0 %}{{ s.overdue }} Late{% else %}Active{% endif %}
+        </span>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-bar"><div class="progress-fill" style="width:{{ s.progress }}%"></div></div>
+        <span class="progress-pct">{{ s.progress }}%</span>
+      </div>
+      <div class="card-meta">
+        <span class="green">✅ {{ s.completed }}</span>
+        <span class="yellow">⏳ {{ s.pending }}</span>
+        <span class="red">🔴 {{ s.overdue }}</span>
+        {% if p.deadline %}<span class="ml-auto muted">📅 {{ p.deadline }}</span>{% endif %}
+      </div>
+    </a>
+    {% else %}
+    <div class="empty-state">
+      <p style="font-size:2.5rem;margin-bottom:.8rem">📋</p>
+      <p>No projects yet. Add a client and create your first project.</p>
+    </div>
+    {% endfor %}
+  </div>
+</main>
+
+<!-- ░ MODAL: Add Client ░ -->
+<div class="overlay" id="clientModal" onclick="closeOverlay(event,'clientModal')">
+  <div class="modal">
+    <div class="modal-hdr"><h2>Add Client</h2><button onclick="hide('clientModal')">✕</button></div>
+    <form method="POST" action="{{ url_for('add_client') }}">
+      <label>Name *</label>
+      <input type="text" name="name" placeholder="e.g. Acme Corp" required/>
+      <label>Company</label>
+      <input type="text" name="company" placeholder="Company name"/>
+      <label>Email</label>
+      <input type="email" name="email" placeholder="client@example.com"/>
+      <button type="submit" class="btn-primary full mt12">Add Client</button>
+    </form>
+  </div>
+</div>
+
+<!-- ░ MODAL: Add Team Member ░ -->
+<div class="overlay" id="memberModal" onclick="closeOverlay(event,'memberModal')">
+  <div class="modal">
+    <div class="modal-hdr"><h2>Add Team Member</h2><button onclick="hide('memberModal')">✕</button></div>
+    <form method="POST" action="{{ url_for('add_member') }}">
+      <label>Full Name *</label>
+      <input type="text" name="name" placeholder="e.g. Sarah Johnson" required/>
+      <label>Role *</label>
+      <select name="role" required>
+        <option value="">— Select role —</option>
+        <option value="UI Designer">UI Designer</option>
+        <option value="Graphic Designer">Graphic Designer</option>
+        <option value="Developer">Developer</option>
+        <option value="Project Manager">Project Manager</option>
+        <option value="QA Engineer">QA Engineer</option>
+      </select>
+      <label>Email</label>
+      <input type="email" name="email" placeholder="member@team.com"/>
+      <label>Avatar Color</label>
+      <div class="color-picker">
+        {% for col in colors %}
+        <label class="color-opt">
+          <input type="radio" name="color" value="{{ col }}" {% if loop.first %}checked{% endif %}/>
+          <span class="color-swatch" style="background:{{ col }}"></span>
+        </label>
+        {% endfor %}
+      </div>
+      <button type="submit" class="btn-primary full mt12">Add Member</button>
+    </form>
+  </div>
+</div>
+
+<!-- ░ MODAL: New Project ░ -->
+<div class="overlay" id="projectModal" onclick="closeOverlay(event,'projectModal')">
+  <div class="modal">
+    <div class="modal-hdr"><h2>New Project</h2><button onclick="hide('projectModal')">✕</button></div>
+    <form method="POST" action="{{ url_for('add_project') }}">
+      <label>Client *</label>
+      <select name="client_id" required>
+        <option value="">— Select client —</option>
+        {% for c in clients %}
+        <option value="{{ c.id }}">{{ c.name }}</option>
+        {% endfor %}
+      </select>
+      <label>Project Title *</label>
+      <input type="text" name="title" placeholder="e.g. Shopify Store Redesign" required/>
+      <label>Description (used for AI task generation)</label>
+      <textarea name="description" rows="3" placeholder="Describe the project in detail — the more specific, the better the AI-generated tasks..."></textarea>
+      <label>Deadline</label>
+      <input type="date" name="deadline"/>
+      <p class="hint">🤖 OpenAI will auto-generate tasks from your description.</p>
+      <button type="submit" class="btn-primary full mt12">Create & Generate Tasks</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  function show(id)  { document.getElementById(id).classList.add('active') }
+  function hide(id)  { document.getElementById(id).classList.remove('active') }
+  function closeOverlay(e, id) { if(e.target.id===id) hide(id) }
+  window.addEventListener('load', () => {
+    document.querySelectorAll('.progress-fill').forEach(b => {
+      const w = b.style.width; b.style.width='0';
+      setTimeout(() => b.style.width = w, 120);
+    });
+  });
+</script>
+</body>
+</html>

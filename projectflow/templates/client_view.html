@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>{{ client.name }} — Client Portal</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+</head>
+<body class="portal-body">
+<div class="portal-wrap">
+
+  <header class="portal-header">
+    <div class="logo" style="border:none;padding:0">
+      <span class="logo-mark">PF</span>
+      <span class="logo-text">ProjectFlow</span>
+    </div>
+    <div class="portal-client-info">
+      <div class="portal-avatar">{{ client.name[0].upper() }}</div>
+      <div>
+        <h1>{{ client.name }}</h1>
+        {% if client.company %}<p class="muted">{{ client.company }}</p>{% endif %}
+        {% if client.email %}<p class="muted">{{ client.email }}</p>{% endif %}
+      </div>
+    </div>
+    <a href="{{ url_for('index') }}" class="btn-ghost" style="width:auto">← Admin</a>
+  </header>
+
+  <div class="stats-row" style="padding-bottom:2rem">
+    <div class="stat-card">
+      <span class="stat-num">{{ projects|length }}</span>
+      <span class="stat-label">Projects</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-num">{{ stats.values()|sum(attribute='total') }}</span>
+      <span class="stat-label">Total Tasks</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-num green">{{ stats.values()|sum(attribute='completed') }}</span>
+      <span class="stat-label">Completed</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-num red">{{ stats.values()|sum(attribute='overdue') }}</span>
+      <span class="stat-label">Overdue</span>
+    </div>
+  </div>
+
+  {% for p in projects %}
+  {% set s = stats[p.id] %}
+  <div class="portal-project">
+    <div class="portal-proj-hdr">
+      <div>
+        <h2 class="portal-proj-title">{{ p.title }}</h2>
+        {% if p.description %}<p class="muted" style="font-size:.85rem;margin-top:3px">{{ p.description }}</p>{% endif %}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        {% if p.deadline %}<span class="deadline-tag">📅 {{ p.deadline }}</span>{% endif %}
+        <span class="badge {% if s.progress==100 %}badge-green{% elif s.overdue>0 %}badge-red{% else %}badge-blue{% endif %}">
+          {{ s.progress }}%
+        </span>
+      </div>
+    </div>
+
+    <div class="big-progress-wrap" style="margin-bottom:1rem">
+      <div class="big-progress-bar">
+        <div class="big-progress-fill {% if s.progress==100 %}fill-green{% elif s.overdue>0 %}fill-red{% endif %}"
+             style="width:{{ s.progress }}%"></div>
+      </div>
+      <div class="progress-legend">
+        <span class="leg green">✅ {{ s.completed }} Done</span>
+        <span class="leg yellow">⏳ {{ s.pending }} Pending</span>
+        <span class="leg red">🔴 {{ s.overdue }} Overdue</span>
+      </div>
+    </div>
+
+    <div class="feedback-box">
+      <p class="feedback-label">💬 Leave Feedback</p>
+      <form method="POST" action="{{ url_for('add_feedback') }}">
+        <input type="hidden" name="project_id" value="{{ p.id }}"/>
+        <textarea name="message" rows="2" placeholder="Share your thoughts on this project..."></textarea>
+        <button type="submit" class="btn-primary" style="margin-top:8px">Send</button>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <p style="font-size:2.5rem;margin-bottom:.8rem">📋</p>
+    <p>No projects assigned to this client yet.</p>
+  </div>
+  {% endfor %}
+
+  {% if feedback %}
+  <div style="margin-top:2rem">
+    <h3 class="section-heading">Previous Feedback</h3>
+    {% for fb in feedback %}
+    <div class="feedback-item">
+      <p>{{ fb.message }}</p>
+      <span class="feedback-date">{{ fb.created_at[:16] }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</div>
+<script>
+  window.addEventListener('load', () => {
+    document.querySelectorAll('.big-progress-fill').forEach(b => {
+      const w = b.style.width; b.style.width='0';
+      setTimeout(() => b.style.width = w, 150);
+    });
+  });
+</script>
+</body>
+</html>

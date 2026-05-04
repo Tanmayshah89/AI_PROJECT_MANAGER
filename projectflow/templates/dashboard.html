@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>{{ project.title }} — ProjectFlow</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo">
+    <a href="{{ url_for('index') }}" class="logo-link">
+      <span class="logo-mark">PF</span>
+      <span class="logo-text">ProjectFlow</span>
+    </a>
+  </div>
+
+  <nav class="nav-section">
+    <p class="nav-label">Navigation</p>
+    <a href="{{ url_for('index') }}" class="nav-item">← All Projects</a>
+    <a href="{{ url_for('client_view', client_id=project.client_id) }}" class="nav-item">👤 Client View</a>
+  </nav>
+
+  <nav class="nav-section">
+    <p class="nav-label">Progress</p>
+    <div class="sidebar-stats">
+      <div class="ss-item green"><span class="ss-num">{{ stats.completed }}</span><span class="ss-lbl">Done</span></div>
+      <div class="ss-item yellow"><span class="ss-num">{{ stats.pending }}</span><span class="ss-lbl">Pending</span></div>
+      <div class="ss-item red"><span class="ss-num">{{ stats.overdue }}</span><span class="ss-lbl">Late</span></div>
+    </div>
+    <div class="progress-wrap mt8">
+      <div class="progress-bar"><div class="progress-fill" style="width:{{ stats.progress }}%"></div></div>
+      <span class="progress-pct">{{ stats.progress }}%</span>
+    </div>
+  </nav>
+
+  <!-- Team on this project -->
+  <nav class="nav-section">
+    <p class="nav-label">Team Members</p>
+    {% if members %}
+      {% set assigned_ids = [] %}
+      {% for tm in tasks_with_members %}
+        {% for a in tm.assigned %}
+          {% if a.id not in assigned_ids %}{% set _ = assigned_ids.append(a.id) %}{% endif %}
+        {% endfor %}
+      {% endfor %}
+      {% for m in members %}
+      <div class="nav-item" style="gap:8px">
+        <span class="nav-avatar" style="background:{{ m.avatar_color }}">{{ m.name[0].upper() }}</span>
+        <div>
+          <span style="font-size:.83rem">{{ m.name }}</span>
+          <span class="member-role-tag" style="display:block;font-size:.68rem">{{ m.role }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="nav-empty">Add team members from the dashboard</p>
+    {% endif %}
+  </nav>
+
+  <!-- Add manual task -->
+  <nav class="nav-section">
+    <p class="nav-label">Add Manual Task</p>
+    <form method="POST" action="{{ url_for('add_task') }}" class="mini-form">
+      <input type="hidden" name="project_id" value="{{ project.id }}"/>
+      <input type="text" name="title" placeholder="Task name" required/>
+      <select name="role">
+        <option value="UI Designer">UI Designer</option>
+        <option value="Graphic Designer">Graphic Designer</option>
+        <option value="Developer">Developer</option>
+      </select>
+      <input type="date" name="deadline"/>
+      <button type="submit" class="btn-ghost full mt6">+ Add Task</button>
+    </form>
+  </nav>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <div>
+      <p class="page-sub">{{ project.client_name }}</p>
+      <h1 class="page-title">{{ project.title }}</h1>
+      {% if project.description %}<p class="page-desc">{{ project.description }}</p>{% endif %}
+    </div>
+    <div class="topbar-right">
+      <span class="badge badge-lg {% if stats.progress==100 %}badge-green{% elif stats.overdue>0 %}badge-red{% else %}badge-blue{% endif %}">
+        {{ stats.progress }}% Complete
+      </span>
+      {% if project.deadline %}<span class="deadline-tag">📅 {{ project.deadline }}</span>{% endif %}
+    </div>
+  </header>
+
+  <!-- Big progress bar -->
+  <div class="big-progress-wrap">
+    <div class="big-progress-bar">
+      <div class="big-progress-fill {% if stats.progress==100 %}fill-green{% elif stats.overdue>0 %}fill-red{% endif %}"
+           style="width:{{ stats.progress }}%"></div>
+    </div>
+    <div class="progress-legend">
+      <span class="leg green">✅ {{ stats.completed }} Completed</span>
+      <span class="leg yellow">⏳ {{ stats.pending }} Pending</span>
+      <span class="leg red">🔴 {{ stats.overdue }} Overdue</span>
+      <span class="leg muted">{{ stats.total }} Total</span>
+    </div>
+  </div>
+
+  <!-- Tasks by Role -->
+  {% set roles = [('UI Designer','🎨'), ('Graphic Designer','✏️'), ('Developer','💻')] %}
+  {% for role, icon in roles %}
+  {% set role_tasks = tasks_with_members | selectattr('task.role', 'equalto', role) | list %}
+  {% if role_tasks %}
+  <section class="task-section">
+    <h2 class="role-title">
+      {{ icon }} {{ role }}
+      <span class="role-count">{{ role_tasks|length }} tasks</span>
+    </h2>
+    <div class="task-list">
+      {% for item in role_tasks %}
+      {% set task = item.task %}
+      {% set assigned = item.assigned %}
+      {% set is_overdue = task.status != 'Completed' and task.deadline and task.deadline < today %}
+      <div class="task-row {% if task.status=='Completed' %}task-done{% elif is_overdue %}task-overdue{% endif %}">
+
+        <!-- Checkbox -->
+        <form method="POST" action="{{ url_for('toggle_task', task_id=task.id) }}">
+          <button type="submit" class="check-btn {% if task.status=='Completed' %}checked{% endif %}">
+            {% if task.status=='Completed' %}✓{% endif %}
+          </button>
+        </form>
+
+        <!-- Task info -->
+        <div class="task-info">
+          <span class="task-title">{{ task.title }}</span>
+          {% if task.deadline %}
+          <span class="task-deadline {% if is_overdue %}meta-overdue{% endif %}">📅 {{ task.deadline }}</span>
+          {% endif %}
+        </div>
+
+        <!-- Assigned members avatars -->
+        <div class="assignees">
+          {% for m in assigned %}
+          <span class="assignee-chip" style="background:{{ m.avatar_color }}" title="{{ m.name }} ({{ m.role }})">
+            {{ m.name[0].upper() }}
+          </span>
+          {% endfor %}
+          {% if not assigned %}
+          <span class="unassigned-tag">Unassigned</span>
+          {% endif %}
+        </div>
+
+        <!-- Status badge -->
+        <span class="task-status {% if task.status=='Completed' %}status-done{% elif is_overdue %}status-overdue{% else %}status-pending{% endif %}">
+          {% if task.status=='Completed' %}Completed{% elif is_overdue %}Overdue{% else %}Pending{% endif %}
+        </span>
+
+        <!-- Assign button -->
+        <button class="assign-btn" onclick="openAssign({{ task.id }}, '{{ task.title|replace("'","\\'") }}')" title="Assign members">
+          👥
+        </button>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+  {% endfor %}
+
+  <!-- Other roles -->
+  {% set known_roles = ['UI Designer','Graphic Designer','Developer'] %}
+  {% set other = tasks_with_members | rejectattr('task.role', 'in', known_roles) | list %}
+  {% if other %}
+  <section class="task-section">
+    <h2 class="role-title">📌 Other Tasks</h2>
+    <div class="task-list">
+      {% for item in other %}
+      {% set task = item.task %}
+      {% set assigned = item.assigned %}
+      {% set is_overdue = task.status != 'Completed' and task.deadline and task.deadline < today %}
+      <div class="task-row {% if task.status=='Completed' %}task-done{% elif is_overdue %}task-overdue{% endif %}">
+        <form method="POST" action="{{ url_for('toggle_task', task_id=task.id) }}">
+          <button type="submit" class="check-btn {% if task.status=='Completed' %}checked{% endif %}">{% if task.status=='Completed' %}✓{% endif %}</button>
+        </form>
+        <div class="task-info">
+          <span class="task-title">{{ task.title }}</span>
+          <span class="task-meta muted">{{ task.role }}</span>
+        </div>
+        <div class="assignees">
+          {% for m in assigned %}
+          <span class="assignee-chip" style="background:{{ m.avatar_color }}" title="{{ m.name }}">{{ m.name[0].upper() }}</span>
+          {% endfor %}
+          {% if not assigned %}<span class="unassigned-tag">Unassigned</span>{% endif %}
+        </div>
+        <span class="task-status {% if task.status=='Completed' %}status-done{% elif is_overdue %}status-overdue{% else %}status-pending{% endif %}">
+          {% if task.status=='Completed' %}Done{% elif is_overdue %}Overdue{% else %}Pending{% endif %}
+        </span>
+        <button class="assign-btn" onclick="openAssign({{ task.id }}, '{{ task.title|replace("'","\\'") }}')">👥</button>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</main>
+
+<!-- ░ ASSIGN MEMBERS MODAL ░ -->
+<div class="overlay" id="assignModal" onclick="closeOverlay(event,'assignModal')">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div>
+        <h2>Assign Members</h2>
+        <p id="assignTaskTitle" class="modal-sub"></p>
+      </div>
+      <button onclick="hide('assignModal')">✕</button>
+    </div>
+
+    <form method="POST" id="assignForm">
+      <input type="hidden" name="project_id" value="{{ project.id }}"/>
+
+      {% if members %}
+      <div class="member-checklist">
+        {% for m in members %}
+        <label class="member-check-row">
+          <input type="checkbox" name="member_ids" value="{{ m.id }}" class="member-checkbox" data-mid="{{ m.id }}"/>
+          <span class="assignee-chip" style="background:{{ m.avatar_color }}">{{ m.name[0].upper() }}</span>
+          <div>
+            <span class="member-name">{{ m.name }}</span>
+            <span class="member-role-tag">{{ m.role }}</span>
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="muted" style="padding:1rem 0">No team members yet. Add members from the dashboard first.</p>
+      {% endif %}
+
+      <button type="submit" class="btn-primary full mt12">Save Assignment</button>
+    </form>
+  </div>
+</div>
+
+<!-- Store current assignments as JSON for pre-checking -->
+<script>
+  const assignments = {
+    {% for item in tasks_with_members %}
+    {{ item.task.id }}: [{% for a in item.assigned %}{{ a.id }},{% endfor %}],
+    {% endfor %}
+  };
+
+  function show(id)  { document.getElementById(id).classList.add('active') }
+  function hide(id)  { document.getElementById(id).classList.remove('active') }
+  function closeOverlay(e, id) { if(e.target.id===id) hide(id) }
+
+  function openAssign(taskId, taskTitle) {
+    document.getElementById('assignTaskTitle').textContent = taskTitle;
+    const form = document.getElementById('assignForm');
+    form.action = `/task/${taskId}/assign-bulk`;
+
+    // Pre-check assigned members
+    const assigned = assignments[taskId] || [];
+    document.querySelectorAll('.member-checkbox').forEach(cb => {
+      cb.checked = assigned.includes(parseInt(cb.dataset.mid));
+    });
+    show('assignModal');
+  }
+
+  window.addEventListener('load', () => {
+    document.querySelectorAll('.progress-fill, .big-progress-fill').forEach(b => {
+      const w = b.style.width; b.style.width = '0';
+      setTimeout(() => b.style.width = w, 150);
+    });
+  });
+</script>
+</body>
+</html>
