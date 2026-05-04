@@ -2,7 +2,6 @@
 # 🚀 ProjectFlow — AI Client Project Management Platform
 ProjectFlow is an **AI-powered project management system** that automates how companies handle client projects — from onboarding to task generation, assignment, tracking, and feedback.
 It helps teams break down complex projects into structured tasks using AI and provides clients with a **real-time progress dashboard**.
----
 
 ## ✨ Features
 
